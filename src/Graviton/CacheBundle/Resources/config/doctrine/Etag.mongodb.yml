@@ -1,0 +1,22 @@
+Graviton\CacheBundle\Document\Etag:
+  fields:
+    id:
+      id: true
+      strategy: UUID
+    controller:
+      type: string
+    action:
+      type: string
+    queryString:
+      type: string
+    eTag:
+      type: string
+
+  indexes:
+    etagidx:
+      options:
+        unique: true
+      keys:
+        controller: 1
+        action: 1
+        queryString: 1

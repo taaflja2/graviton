@@ -58,12 +58,9 @@ doctrine_mongodb:
             options: { connect: true }
     document_managers:
         default:
+            auto_mapping: true
             retry_connect: 10
             retry_query: 1
-            mappings:
-                GravitonCoreBundle: ~
-                GravitonRabbitMqBundle: ~
-                GravitonI18nBundle: ~
             metadata_cache_driver:
                 type: "%doctrine.odm.cache.type%"
                 class: "%doctrine.odm.cache.class%"

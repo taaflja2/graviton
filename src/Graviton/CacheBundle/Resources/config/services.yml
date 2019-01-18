@@ -1,21 +1,21 @@
 services:
     graviton.cache.listener.etagresponselistener:
         class: "%graviton.cache.listener.etagresponselistener.class%"
+        arguments:
+          - '@graviton.cache.repository.etag'
         tags:
           -
             name: kernel.event_listener
             event: kernel.response
             method: onKernelResponse
             priority: 110
+          -
+            name: kernel.event_listener
+            event: kernel.controller
+            method: onKernelController
 
     graviton.cache.listener.ifnonematchresponselistener:
         class: "%graviton.cache.listener.ifnonematchresponselistener.class%"
-        tags:
-          -
-            name: kernel.event_listener
-            event: kernel.response
-            method: onKernelResponse
-            priority: 100
 
     ## public aliases for doctrine cache bundle providers
     graviton.cache.provider.local:
@@ -27,3 +27,9 @@ services:
     graviton.cache.provider.redis:
         alias: doctrine_cache.providers.redis
         public: true
+
+    graviton.cache.repository.etag:
+      class: "%graviton.cache.repository.etag.class%"
+      factory: 'doctrine_mongodb.odm.default_document_manager:getRepository'
+      arguments:
+        - 'GravitonCacheBundle:Etag'
