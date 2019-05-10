@@ -11,12 +11,9 @@ use Graviton\DocumentBundle\Service\ExtReferenceConverter;
 use Graviton\RabbitMqBundle\Document\QueueEvent;
 use Graviton\RestBundle\HttpFoundation\LinkHeader;
 use Graviton\RestBundle\HttpFoundation\LinkHeaderItem;
-use Jaeger\Config;
-use Jaeger\Factory;
-use const Jaeger\SAMPLER_TYPE_CONST;
-use const OpenTracing\Formats\HTTP_HEADERS;
 use const OpenTracing\Formats\TEXT_MAP;
-use OpenTracing\GlobalTracer;
+use OpenTracing\Span;
+use OpenTracing\Tracer;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
 use OldSound\RabbitMqBundle\RabbitMq\ProducerInterface;
@@ -107,6 +104,11 @@ class EventStatusLinkResponseListener
     protected $workerRelativeUrl;
 
     /**
+     * @var Tracer
+     */
+    private $tracer;
+
+    /**
      * @param ProducerInterface     $rabbitMqProducer                  RabbitMQ dependency
      * @param RouterInterface       $router                            Router dependency
      * @param RequestStack          $requestStack                      Request stack
@@ -136,7 +138,8 @@ class EventStatusLinkResponseListener
         $eventStatusEventResourceClassname,
         $eventStatusRouteName,
         SecurityUtils $securityUtils,
-        $workerRelativeUrl
+        $workerRelativeUrl,
+        Tracer $tracer
     ) {
         $this->rabbitMqProducer = $rabbitMqProducer;
         $this->router = $router;
@@ -154,6 +157,7 @@ class EventStatusLinkResponseListener
         if (!is_null($workerRelativeUrl)) {
             $this->workerRelativeUrl = new Uri($workerRelativeUrl);
         }
+        $this->tracer = $tracer;
     }
 
     /**
@@ -194,36 +198,6 @@ class EventStatusLinkResponseListener
             );
         }
 
-        // https://github.com/jaegertracing/jaeger/issues/211
-
-        $config = new Config(
-            [
-                'sampler' => [
-                    'type' => SAMPLER_TYPE_CONST,
-                    'param' => true,
-                ],
-                'logging' => true,
-            ],
-            'graviton'
-        );
-        $config->initializeTracer();
-
-
-        $tracer = GlobalTracer::get();
-
-
-
-        $mainSpan = $tracer->startSpan('worker-trigger');
-
-
-
-        // extract parent infomation from http header
-        //$carrier = $_SERVER['HTTP_UBER_TRACE_ID'];
-        // extract the infomation and generate a new context
-        // only support binary carrier now
-        //$context = $tracer->extract(Formats\BINARY, $carrier);
-
-
         // let's send it to the queue(s) if appropriate
         if (!empty($queueEvent->getEvent())) {
             $queuesForEvent = $this->getSubscribedWorkerIds($queueEvent);
@@ -233,26 +207,30 @@ class EventStatusLinkResponseListener
                 $queueEvent = $this->getWorkerQueueEvent($queueEvent);
             }
 
+            /*
+            $workerSpanOptions = [
+                'finish_span_on_close' => true
+            ];
+            */
+            $carrier = [];
+            if ($this->tracer->getActiveSpan() instanceof Span) {
+                $this->tracer->inject($this->tracer->getActiveSpan()->getContext(), TEXT_MAP, $carrier);
+            }
+
             foreach ($queuesForEvent as $queueForEvent) {
-                $span = $tracer->startSpan($queueForEvent, ['child_of' => $mainSpan]);
+                //$span = $this->tracer->startActiveSpan($queueForEvent.'-trigger', $workerSpanOptions);
+                //$span = $this->tracer->startSpan($queueForEvent.'-trigger', $workerSpanOptions);
 
-                $carrier = [];
-                $tracer->inject($span->getContext(), TEXT_MAP, $carrier);
-
-                var_dump($carrier); die;
+                //$carrier = [];
+                //$this->tracer->inject($span->getContext(), TEXT_MAP, $carrier);
 
                 // declare the Queue for the Event if its not there already declared
                 $this->rabbitMqProducer->getChannel()->queue_declare($queueForEvent, false, true, false, false);
-
                 $this->rabbitMqProducer->publish(json_encode($queueEvent), $queueForEvent, ['correlation_id' => array_pop($carrier)]);
 
-                $span->finish();
+                //$span->finish();
             }
         }
-
-        $mainSpan->finish();
-
-        $tracer->flush();
     }
 
     /**

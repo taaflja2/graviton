@@ -136,6 +136,34 @@ services:
             priority: 9999
             method: onKernelResponse
 
+    graviton.rest.tracer.factory:
+        class: Jaeger\Config
+        arguments:
+          - "%tracing.options%"
+          - "%tracing.servicename%"
+        calls:
+          - method: initializeTracer
+
+    graviton.rest.tracer.global:
+        class: Jaeger\Tracer
+        factory: ["@graviton.rest.tracer.factory", "initializeTracer"]
+
+    graviton.rest.listener.tracinglistener:
+      class: Graviton\RestBundle\Listener\TracingRequestListener
+      arguments:
+        - "@graviton.rest.tracer.global"
+      tags:
+        -
+          name: kernel.event_listener
+          event: kernel.request
+          priority: 9000
+          method: onKernelRequest
+        -
+          name: kernel.event_listener
+          event: kernel.response
+          priority: -2000
+          method: onKernelResponse
+
     #Json Request listener -->
     graviton.rest.listener.jsonrequestlistener:
         class: Graviton\RestBundle\Listener\JsonRequestListener

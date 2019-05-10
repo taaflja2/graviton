@@ -4,6 +4,14 @@ imports:
 
 parameters:
     jms_serializer.camel_case_naming_strategy.class: JMS\Serializer\Naming\IdenticalPropertyNamingStrategy
+    # see https://github.com/jaegertracing/jaeger/issues/211
+    tracing.options:
+        -
+            sampler:
+                type: const
+                param: true
+            logging: true
+    tracing.servicename: graviton
 
 # Synfony Framework Configuation
 # see http://symfony.com/doc/current/reference/configuration/framework.html
