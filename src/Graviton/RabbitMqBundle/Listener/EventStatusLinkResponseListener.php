@@ -11,6 +11,12 @@ use Graviton\DocumentBundle\Service\ExtReferenceConverter;
 use Graviton\RabbitMqBundle\Document\QueueEvent;
 use Graviton\RestBundle\HttpFoundation\LinkHeader;
 use Graviton\RestBundle\HttpFoundation\LinkHeaderItem;
+use Jaeger\Config;
+use Jaeger\Factory;
+use const Jaeger\SAMPLER_TYPE_CONST;
+use const OpenTracing\Formats\HTTP_HEADERS;
+use const OpenTracing\Formats\TEXT_MAP;
+use OpenTracing\GlobalTracer;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
 use OldSound\RabbitMqBundle\RabbitMq\ProducerInterface;
@@ -188,6 +194,36 @@ class EventStatusLinkResponseListener
             );
         }
 
+        // https://github.com/jaegertracing/jaeger/issues/211
+
+        $config = new Config(
+            [
+                'sampler' => [
+                    'type' => SAMPLER_TYPE_CONST,
+                    'param' => true,
+                ],
+                'logging' => true,
+            ],
+            'graviton'
+        );
+        $config->initializeTracer();
+
+
+        $tracer = GlobalTracer::get();
+
+
+
+        $mainSpan = $tracer->startSpan('worker-trigger');
+
+
+
+        // extract parent infomation from http header
+        //$carrier = $_SERVER['HTTP_UBER_TRACE_ID'];
+        // extract the infomation and generate a new context
+        // only support binary carrier now
+        //$context = $tracer->extract(Formats\BINARY, $carrier);
+
+
         // let's send it to the queue(s) if appropriate
         if (!empty($queueEvent->getEvent())) {
             $queuesForEvent = $this->getSubscribedWorkerIds($queueEvent);
@@ -198,11 +234,25 @@ class EventStatusLinkResponseListener
             }
 
             foreach ($queuesForEvent as $queueForEvent) {
+                $span = $tracer->startSpan($queueForEvent, ['child_of' => $mainSpan]);
+
+                $carrier = [];
+                $tracer->inject($span->getContext(), TEXT_MAP, $carrier);
+
+                var_dump($carrier); die;
+
                 // declare the Queue for the Event if its not there already declared
                 $this->rabbitMqProducer->getChannel()->queue_declare($queueForEvent, false, true, false, false);
-                $this->rabbitMqProducer->publish(json_encode($queueEvent), $queueForEvent);
+
+                $this->rabbitMqProducer->publish(json_encode($queueEvent), $queueForEvent, ['correlation_id' => array_pop($carrier)]);
+
+                $span->finish();
             }
         }
+
+        $mainSpan->finish();
+
+        $tracer->flush();
     }
 
     /**
