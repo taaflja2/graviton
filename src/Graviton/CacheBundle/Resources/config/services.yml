@@ -30,3 +30,11 @@ services:
     graviton.cache.provider.redis:
         alias: doctrine_cache.providers.redis
         public: true
+
+    # services for symfony cache (should replace doctrine cache if possible?)
+    graviton.cache.adapter.append:
+        class: Symfony\Component\Cache\Adapter\PhpFilesAdapter
+        arguments:
+          - ""
+          - 0
+          - "%kernel.cache_dir%/symcache_append"

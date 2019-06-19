@@ -17,8 +17,10 @@ use Graviton\SchemaBundle\Service\RepositoryFactory;
 use JmesPath\CompilerRuntime;
 use JMS\Serializer\Serializer;
 use Metadata\MetadataFactoryInterface as SerializerMetadataFactoryInterface;
+use Symfony\Component\Cache\CacheItem;
 use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 /**
  * Utils for generating schemas.
@@ -36,6 +38,11 @@ class SchemaUtils
      * @var DocumentRepository repository
      */
     private $languageRepository;
+
+    /**
+     * @var array
+     */
+    private $languages = [];
 
     /**
      * router
@@ -134,9 +141,10 @@ class SchemaUtils
         $schemaVariationEnabled,
         $defaultLocale,
         ConstraintBuilder $constraintBuilder,
-        CacheProvider $cache,
+        $cache,
         CompilerRuntime $jmesRuntime
     ) {
+
         $this->repositoryFactory = $repositoryFactory;
         $this->serializerMetadataFactory = $serializerMetadataFactory;
         $this->languageRepository = $languageRepository;
@@ -197,9 +205,8 @@ class SchemaUtils
             $variationName = $this->getSchemaVariationName($userData, $model->getVariations());
         }
 
-        $languages = [];
-        if ($online) {
-            $languages = array_map(
+        if (empty($this->languages && $online)) {
+            $this->languages = array_map(
                 function (Language $language) {
                     return $language->getId();
                 },
@@ -207,28 +214,50 @@ class SchemaUtils
             );
         }
         if (empty($languages)) {
-            $languages = [
+            $this->languages = [
                 $this->defaultLocale
             ];
         }
 
         $cacheKey = sprintf(
-            'schema.%s.%s.%s.%s.%s.%s',
+            'schema-%s-%s-%s-%s-%s-%s',
             $model->getEntityClass(),
             (string) $online,
             (string) $internal,
             (string) $serialized,
             (string) $variationName,
-            (string) implode('-', $languages)
+            (string) implode('-', $this->languages)
         );
 
-        if ($this->cache->contains($cacheKey)) {
-            return $this->cache->fetch($cacheKey);
-        }
+        $cacheKey = preg_replace('/[^A-Za-z0-9\- ]/', '', $cacheKey);
+
+        return $this->cache->get($cacheKey, function (ItemInterface $item) use ($modelName, $model, $variationName, $online, $internal, $serialized, $userData) {
+            //$item->tag($modelName);
+            return $this->createModelSchema(
+                $item,
+                $modelName,
+                $model,
+                $variationName,
+                $online,
+                $internal,
+                $serialized
+            );
+        });
+
+    }
+
+    private function createModelSchema(
+        ItemInterface $cacheItem,
+        $modelName,
+        DocumentModel $model,
+        $variationName,
+        $online = true,
+        $internal = false,
+        $serialized = false
+    ) {
 
         // build up schema data
         $schema = new Schema;
-        $schemaIsCachable = true;
 
         if (!empty($model->getTitle())) {
             $schema->setTitle($model->getTitle());
@@ -328,9 +357,6 @@ class SchemaUtils
                         $documentId = $dynamicKeySpec->{'document-id'};
                         $dynamicRepository = $this->repositoryFactory->get($documentId);
 
-                        // put this in invalidate map so when know we have to invalidate when this document is used
-                        $invalidateCacheMap[$dynamicRepository->getDocumentName()][] = $cacheKey;
-
                         $repositoryMethod = $dynamicKeySpec->{'repository-method'};
                         $records = $dynamicRepository->$repositoryMethod();
 
@@ -347,8 +373,8 @@ class SchemaUtils
                             );
                         }
 
-                        // don't cache this schema
-                        $schemaIsCachable = false;
+                        // don't cache this schema so long
+                        $cacheItem->expiresAfter(3600);
                     } else {
                         // swagger case
                         $property->setAdditionalProperties(
@@ -371,7 +397,7 @@ class SchemaUtils
                     }
                 }
             } elseif ($meta->getTypeOfField($field) == 'translatable') {
-                $property = $this->makeTranslatable($property, $languages);
+                $property = $this->makeTranslatable($property, $this->languages);
             } elseif ($meta->getTypeOfField($field) === 'extref') {
                 $urls = [];
                 $refCollections = $model->getRefCollectionOfField($field);
@@ -413,7 +439,7 @@ class SchemaUtils
                 $itemSchema = new Schema();
                 $itemSchema->setType('object');
                 $itemSchema->setFormat('translatable');
-                $itemSchema = $this->makeTranslatable($itemSchema, $languages);
+                $itemSchema = $this->makeTranslatable($itemSchema, $this->languages);
 
                 $property->setType('array');
                 $property->setItems($itemSchema);
@@ -462,10 +488,6 @@ class SchemaUtils
 
         if ($serialized === true) {
             $schema = json_decode($this->serializer->serialize($schema, 'json'));
-        }
-
-        if ($schemaIsCachable === true) {
-            $this->cache->save($cacheKey, $schema);
         }
 
         return $schema;

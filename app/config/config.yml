@@ -12,6 +12,13 @@ framework:
     router:
         resource: "%kernel.root_dir%/config/routing.yml"
         strict_requirements: ~
+    # https://symfony.com/doc/current/cache.html
+    cache:
+        default_redis_provider: 'redis://%graviton.cache.redis.host%:%graviton.cache.redis.port%'
+        pools:
+            local_append.cache:
+                adapter: graviton.cache.adapter.append
+                tags: true
     form:
         enabled: false
     csrf_protection: false

@@ -6,7 +6,6 @@
 namespace Graviton\SchemaBundle\Tests\Controller;
 
 use Graviton\TestBundle\Test\RestTestCase;
-use Symfony\Component\HttpFoundation\Response;
 
 /**
  * @author   List of contributors <https://github.com/libgraviton/graviton/graphs/contributors>

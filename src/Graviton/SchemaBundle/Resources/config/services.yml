@@ -116,7 +116,7 @@ services:
           - "%graviton.rest.schema_variation.enable%"
           - "%locale%"
           - "@graviton.schema.constraint.builder"
-          - "@graviton.cache.provider.file"
+          - "@graviton.cache.adapter.append"
           - "@graviton.core.service.jmespath"
 
     graviton.schema.constraint.incrementaldate:
