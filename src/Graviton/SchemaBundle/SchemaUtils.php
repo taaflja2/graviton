@@ -6,8 +6,6 @@
 namespace Graviton\SchemaBundle;
 
 use Doctrine\Common\Cache\CacheProvider;
-use Doctrine\ODM\MongoDB\DocumentRepository;
-use Graviton\I18nBundle\Document\Language;
 use Graviton\I18nBundle\Service\I18nUtils;
 use Graviton\RestBundle\Model\DocumentModel;
 use Graviton\SchemaBundle\Constraint\ConstraintBuilder;
@@ -32,13 +30,6 @@ use Symfony\Contracts\Cache\ItemInterface;
  */
 class SchemaUtils
 {
-
-    /**
-     * language repository
-     *
-     * @var DocumentRepository repository
-     */
-    private $languageRepository;
 
     /**
      * @var array
@@ -118,7 +109,6 @@ class SchemaUtils
      *
      * @param RepositoryFactory                  $repositoryFactory         Create repos from model class names
      * @param SerializerMetadataFactoryInterface $serializerMetadataFactory Serializer metadata factory
-     * @param DocumentRepository                 $languageRepository        repository
      * @param RouterInterface                    $router                    router
      * @param Serializer                         $serializer                serializer
      * @param array                              $extrefServiceMapping      Extref service mapping
@@ -133,7 +123,6 @@ class SchemaUtils
     public function __construct(
         RepositoryFactory $repositoryFactory,
         SerializerMetadataFactoryInterface $serializerMetadataFactory,
-        DocumentRepository $languageRepository,
         RouterInterface $router,
         Serializer $serializer,
         array $extrefServiceMapping,
@@ -147,7 +136,6 @@ class SchemaUtils
     ) {
         $this->repositoryFactory = $repositoryFactory;
         $this->serializerMetadataFactory = $serializerMetadataFactory;
-        $this->languageRepository = $languageRepository;
         $this->router = $router;
         $this->serializer = $serializer;
         $this->extrefServiceMapping = $extrefServiceMapping;
@@ -228,7 +216,6 @@ class SchemaUtils
         $cacheKey = preg_replace('/[^A-Za-z0-9\- ]/', '', $cacheKey);
 
         return $this->cache->get($cacheKey, function (ItemInterface $item) use ($modelName, $model, $variationName, $online, $internal, $serialized, $userData) {
-            //$item->tag($modelName);
             return $this->createModelSchema(
                 $item,
                 $modelName,
