@@ -193,11 +193,11 @@ class SchemaUtils
             $variationName = $this->getSchemaVariationName($userData, $model->getVariations());
         }
 
-        $languages = [];
+        $this->languages = [];
         if ($online) {
             $this->languages = $this->intUtils->getLanguages();
         }
-        if (empty($languages)) {
+        if (empty($this->languages)) {
             $this->languages = [
                 $this->intUtils->getDefaultLanguage()
             ];
@@ -215,20 +215,43 @@ class SchemaUtils
 
         $cacheKey = preg_replace('/[^A-Za-z0-9\- ]/', '', $cacheKey);
 
-        return $this->cache->get($cacheKey, function (ItemInterface $item) use ($modelName, $model, $variationName, $online, $internal, $serialized, $userData) {
-            return $this->createModelSchema(
-                $item,
+        return $this->cache->get(
+            $cacheKey,
+            function (ItemInterface $item) use (
                 $modelName,
                 $model,
                 $variationName,
                 $online,
                 $internal,
-                $serialized
-            );
-        });
-
+                $serialized,
+                $userData
+            ) {
+                return $this->createModelSchema(
+                    $item,
+                    $modelName,
+                    $model,
+                    $variationName,
+                    $online,
+                    $internal,
+                    $serialized
+                );
+            }
+        );
     }
 
+    /**
+     * actually creates the model schema for the cache
+     *
+     * @param ItemInterface $cacheItem     cache item
+     * @param string        $modelName     model name
+     * @param DocumentModel $model         model
+     * @param string        $variationName variation
+     * @param bool          $online        if online
+     * @param bool          $internal      if internal
+     * @param bool          $serialized    if serialized
+     *
+     * @return Schema|mixed schema
+     */
     private function createModelSchema(
         ItemInterface $cacheItem,
         $modelName,
