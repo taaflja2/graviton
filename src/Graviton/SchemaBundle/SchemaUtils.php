@@ -8,6 +8,7 @@ namespace Graviton\SchemaBundle;
 use Doctrine\Common\Cache\CacheProvider;
 use Doctrine\ODM\MongoDB\DocumentRepository;
 use Graviton\I18nBundle\Document\Language;
+use Graviton\I18nBundle\Service\I18nUtils;
 use Graviton\RestBundle\Model\DocumentModel;
 use Graviton\SchemaBundle\Constraint\ConstraintBuilder;
 use Graviton\SchemaBundle\Document\Schema;
@@ -83,11 +84,6 @@ class SchemaUtils
     private $schemaVariationEnabled;
 
     /**
-     * @var string
-     */
-    private $defaultLocale;
-
-    /**
      * @var RepositoryFactory
      */
     private $repositoryFactory;
@@ -113,6 +109,11 @@ class SchemaUtils
     private $jmesRuntime;
 
     /**
+     * @var I18nUtils
+     */
+    private $intUtils;
+
+    /**
      * Constructor
      *
      * @param RepositoryFactory                  $repositoryFactory         Create repos from model class names
@@ -124,10 +125,10 @@ class SchemaUtils
      * @param array                              $eventMap                  eventmap
      * @param array                              $documentFieldNames        Document field names
      * @param boolean                            $schemaVariationEnabled    if schema variations should be enabled
-     * @param string                             $defaultLocale             Default Language
      * @param ConstraintBuilder                  $constraintBuilder         Constraint builder
      * @param CacheProvider                      $cache                     Doctrine cache provider
      * @param CompilerRuntime                    $jmesRuntime               jmespath.php Runtime
+     * @param I18nUtils                          $intUtils                  i18n utils
      */
     public function __construct(
         RepositoryFactory $repositoryFactory,
@@ -139,12 +140,11 @@ class SchemaUtils
         array $eventMap,
         array $documentFieldNames,
         $schemaVariationEnabled,
-        $defaultLocale,
         ConstraintBuilder $constraintBuilder,
         $cache,
-        CompilerRuntime $jmesRuntime
+        CompilerRuntime $jmesRuntime,
+        I18nUtils $intUtils
     ) {
-
         $this->repositoryFactory = $repositoryFactory;
         $this->serializerMetadataFactory = $serializerMetadataFactory;
         $this->languageRepository = $languageRepository;
@@ -154,10 +154,10 @@ class SchemaUtils
         $this->eventMap = $eventMap;
         $this->documentFieldNames = $documentFieldNames;
         $this->schemaVariationEnabled = (bool) $schemaVariationEnabled;
-        $this->defaultLocale = $defaultLocale;
         $this->constraintBuilder = $constraintBuilder;
         $this->cache = $cache;
         $this->jmesRuntime = $jmesRuntime;
+        $this->intUtils = $intUtils;
     }
 
     /**
@@ -205,17 +205,13 @@ class SchemaUtils
             $variationName = $this->getSchemaVariationName($userData, $model->getVariations());
         }
 
-        if (empty($this->languages && $online)) {
-            $this->languages = array_map(
-                function (Language $language) {
-                    return $language->getId();
-                },
-                $this->languageRepository->findAll()
-            );
+        $languages = [];
+        if ($online) {
+            $this->languages = $this->intUtils->getLanguages();
         }
         if (empty($languages)) {
             $this->languages = [
-                $this->defaultLocale
+                $this->intUtils->getDefaultLanguage()
             ];
         }
 
