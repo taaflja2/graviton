@@ -41,6 +41,7 @@ services:
     graviton_security_user_provider:
         class: Graviton\SecurityBundle\Authentication\Provider\AuthenticationProvider
         arguments:
+          - "@logger"
           - "@=service(parameter('graviton.security.authentication.provider.model'))"
           - "%graviton.security.authentication.provider.model.query_field%"
 

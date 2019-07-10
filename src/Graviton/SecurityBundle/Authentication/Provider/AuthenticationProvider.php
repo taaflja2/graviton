@@ -6,6 +6,7 @@
 namespace Graviton\SecurityBundle\Authentication\Provider;
 
 use \Graviton\RestBundle\Model\ModelInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
@@ -19,6 +20,12 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
  */
 class AuthenticationProvider implements UserProviderInterface
 {
+
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
     /**
      * @var ModelInterface
      */
@@ -30,11 +37,13 @@ class AuthenticationProvider implements UserProviderInterface
     protected $queryField;
 
     /**
-     * @param ModelInterface $model      The documentModel
-     * @param string         $queryField Field to search by
+     * @param LoggerInterface $logger     logger
+     * @param ModelInterface  $model      The documentModel
+     * @param string          $queryField Field to search by
      */
-    public function __construct(ModelInterface $model, $queryField)
+    public function __construct(LoggerInterface $logger, ModelInterface $model, $queryField)
     {
+        $this->logger = $logger;
         $this->documentModel = $model;
         $this->queryField = $queryField;
     }
@@ -55,11 +64,15 @@ class AuthenticationProvider implements UserProviderInterface
             return false;
         }
 
-        $user = $this->documentModel->getRepository()->findOneBy(
-            [
-                $this->queryField => new \MongoRegex('/^'.preg_quote($username).'$/i')
-            ]
-        );
+        $critera = [
+            $this->queryField => new \MongoRegex('/^'.preg_quote($username).'$/i')
+        ];
+
+        $this->logger->info('Searching for user', ['criteria' => $critera]);
+
+        $user = $this->documentModel->getRepository()->findOneBy($critera);
+
+        $this->logger->info('Found user', ['user' => $user]);
 
         return $user ? $user : false;
     }
