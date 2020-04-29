@@ -5,6 +5,7 @@
 
 namespace Graviton\DocumentBundle\Service;
 
+use Carbon\Carbon;
 use JsonSchema\Rfc3339;
 
 /**
@@ -80,6 +81,23 @@ class DateConverter
      */
     public function formatDateTime(\DateTime $dateTime)
     {
+        $format = 'Y-m-d\TH:i:s P Z';
+        $carbon = new Carbon($dateTime);
+        var_dump($carbon);
+        var_dump($carbon->format($format));
+        var_dump($carbon->toJSON());
+
+        die;
+
+        $format = 'Y-m-d\TH:i:s P Z';
+        var_dump($this->dateFormat);
+        var_dump($dateTime);
+        var_dump($dateTime->format($format));
+        echo "<hr>";
+
+        var_dump(Carbon::now()->toRfc2822String());
+        die;
+
         return $dateTime->format($this->dateFormat);
     }
 
