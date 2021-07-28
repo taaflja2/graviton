@@ -11,9 +11,11 @@
 
 namespace Graviton\DocumentBundle\Listener;
 
+use Graviton\DocumentBundle\Entity\ExtReference;
 use Graviton\DocumentBundle\Service\ExtReferenceConverterInterface;
 use Graviton\Rql\Event\VisitNodeEvent;
 use Graviton\Rql\Node\ElemMatchNode;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Graviton\RqlParser\Node\Query\AbstractArrayOperatorNode;
@@ -37,15 +39,21 @@ class ExtReferenceSearchListener
     private $fields;
 
     /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
      * construct
      *
      * @param ExtReferenceConverterInterface $converter Extref converter
      * @param array                          $fields    map of fields to process
      */
-    public function __construct(ExtReferenceConverterInterface $converter, array $fields)
+    public function __construct(ExtReferenceConverterInterface $converter, array $fields, LoggerInterface $logger)
     {
         $this->converter = $converter;
         $this->fields = $fields;
+        $this->logger = $logger;
     }
 
     /**
@@ -55,6 +63,7 @@ class ExtReferenceSearchListener
      */
     public function onVisitNode(VisitNodeEvent $event)
     {
+
         $node = $event->getNode();
         $documentClassName = $event->getClassName();
         if ($node instanceof AbstractScalarOperatorNode &&
@@ -99,7 +108,7 @@ class ExtReferenceSearchListener
      *
      * @param string $url Extref URL representation
      *
-     * @return array extref as array
+     * @return \ArrayObject extref as array
      */
     private function getDbRefValue($url)
     {
@@ -108,9 +117,10 @@ class ExtReferenceSearchListener
         }
 
         try {
-            $extref = $this->converter->getExtReference($url);
-            return $extref->jsonSerialize();
+            return $this->converter->getExtReference($url);
+            return $extref->toObject();
         } catch (\InvalidArgumentException $e) {
+            $this->logger->error('Error on parsing URL: '.$url, ['e' => $e]);
             //make up some invalid refs to ensure we find nothing if an invalid url was given
             return [];
         }

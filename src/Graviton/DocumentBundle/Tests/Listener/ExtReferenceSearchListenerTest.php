@@ -10,6 +10,7 @@ use Graviton\DocumentBundle\Listener\ExtReferenceSearchListener;
 use Graviton\DocumentBundle\Service\ExtReferenceConverterInterface;
 use Graviton\Rql\Event\VisitNodeEvent;
 use Graviton\Rql\Node\ElemMatchNode;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\ParameterBag;
 use Symfony\Component\HttpFoundation\Request;
@@ -49,7 +50,7 @@ class ExtReferenceSearchListenerTest extends TestCase
      */
     private function createListener(array $fields)
     {
-        return new ExtReferenceSearchListener($this->converter, $fields);
+        return new ExtReferenceSearchListener($this->converter, $fields, new Logger('main'));
     }
 
     /**

@@ -30,7 +30,7 @@ class ExtReferenceConverter implements ExtReferenceConverterInterface
     /**
      * @var Route[]
      */
-    private $resolvingCache;
+    private $resolvingCache = [];
 
     /**
      * Constructor
@@ -54,12 +54,10 @@ class ExtReferenceConverter implements ExtReferenceConverterInterface
     public function getExtReference($url)
     {
         $path = parse_url($url, PHP_URL_PATH);
+
         if ($path === false) {
             throw new \InvalidArgumentException(sprintf('URL %s', $url));
         }
-
-        $id = null;
-        $collection = null;
 
         if (!isset($this->resolvingCache[$path])) {
             foreach ($this->router->getRouteCollection()->all() as $route) {

@@ -45,6 +45,15 @@ class ExtReference implements \JsonSerializable
         return ['$ref' => $this->ref, '$id' => $this->id];
     }
 
+    public function toObject()
+    {
+        $obj = new \stdClass();
+        $obj->{'$id'} = $this->id;
+        $obj->{'$ref'} = $this->id;
+        return $obj;
+        return new \ArrayObject($this->jsonSerialize());
+    }
+
     /**
      * Get collection name
      *
