@@ -16,6 +16,9 @@
             "Hydrators\\": "src/Doctrine/Hydrators/",
             "Proxies\\": "src/Doctrine/Proxies/"
         },
+        "files": [
+            "vendor/symfony/polyfill-php80/bootstrap.php"
+        ],
         "classmap": [
             "app/AppKernel.php",
             "app/AppCache.php",
